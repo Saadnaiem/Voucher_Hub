@@ -1,0 +1,14 @@
+
+services:
+  - type: web
+    name: voucher-hub
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./
+    envVars:
+      - key: NODE_VERSION
+        value: 20.0.0
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
