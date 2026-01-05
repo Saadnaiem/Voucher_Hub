@@ -1,15 +1,5 @@
 
 import React, { useMemo, useState } from 'react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  Cell
-} from 'recharts';
 import { VoucherEntry } from '../types';
 import { 
   Ticket, 
@@ -21,7 +11,10 @@ import {
   TrendingUp,
   MapPin,
   Filter,
-  ArrowRight
+  ArrowRight,
+  ClipboardList,
+  Store,
+  User
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -34,11 +27,11 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, onClearData, onImportData }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Date format helper: YYYY-MM-DD -> DD-MM-YY
+  // Date format helper: YYYY-MM-DD -> DD-MM-YYYY
   const formatDateDMY = (dateStr: string) => {
     if (!dateStr) return '';
     const [y, m, d] = dateStr.split('-');
-    return `${d}-${m}-${y.slice(-2)}`;
+    return `${d}-${m}-${y}`;
   };
 
   // Date filter state - default to last 30 days
@@ -57,17 +50,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, on
     });
   }, [entries, dateRange]);
 
-  // Aggregated analytics for the filtered period
+  // Aggregated analytics
   const analytics = useMemo(() => {
     const pharmacyMap: Record<string, number> = {};
     const pharmacistMap: Record<string, number> = {};
+    const breakdownMap: Record<string, {
+      pharmacy: string;
+      date: string;
+      pharmacistId: string;
+      voucherName: string;
+      count: number;
+    }> = {};
     
     let newEnrollments = 0;
 
     filteredEntries.forEach(e => {
+      // General KPIs
       pharmacyMap[e.pharmacyName] = (pharmacyMap[e.pharmacyName] || 0) + 1;
       pharmacistMap[e.pharmacistId] = (pharmacistMap[e.pharmacistId] || 0) + 1;
       if (e.lakumStatus === 'New Enrollment') newEnrollments++;
+
+      // Granular Breakdown Key: Pharmacy|Date|Pharmacist|Voucher
+      const key = `${e.pharmacyName}|${e.date}|${e.pharmacistId}|${e.voucherName}`;
+      if (!breakdownMap[key]) {
+        breakdownMap[key] = {
+          pharmacy: e.pharmacyName,
+          date: e.date,
+          pharmacistId: e.pharmacistId,
+          voucherName: e.voucherName,
+          count: 0
+        };
+      }
+      breakdownMap[key].count += 1;
     });
 
     const pharmacyData = Object.entries(pharmacyMap)
@@ -78,16 +92,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, on
       .map(([id, count]) => ({ id, count }))
       .sort((a, b) => b.count - a.count);
 
+    const detailedBreakdown = Object.values(breakdownMap).sort((a, b) => {
+      // Sort by date (desc) then pharmacy (asc)
+      if (b.date !== a.date) return b.date.localeCompare(a.date);
+      return a.pharmacy.localeCompare(b.pharmacy);
+    });
+
     return {
       total: filteredEntries.length,
       newEnrollments,
       reportingCount: Object.keys(pharmacyMap).length,
       pharmacyData,
-      pharmacistData
+      pharmacistData,
+      detailedBreakdown
     };
   }, [filteredEntries]);
-
-  const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#0ea5e9', '#f43f5e'];
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
@@ -98,6 +117,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, on
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setDateRange(prev => ({ ...prev, [name]: value }));
+  };
+
+  const getVoucherStyle = (name: string) => {
+    const n = name.toLowerCase();
+    if (n.includes('huggies')) return 'bg-indigo-50 text-indigo-700 border-indigo-100';
+    if (n.includes('kotex')) return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+    if (n.includes('blevit')) return 'bg-amber-50 text-amber-700 border-amber-100';
+    return 'bg-rose-50 text-rose-700 border-rose-100';
   };
 
   return (
@@ -143,7 +170,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, on
         </div>
       </div>
 
-      {/* Primary KPI Grid (Now Filtered) */}
+      {/* Primary KPI Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
         {[
           { label: 'Redeemed in Period', value: analytics.total, icon: <Ticket />, color: 'text-indigo-600', bg: 'bg-indigo-50', sub: 'Successful Logs' },
@@ -162,61 +189,86 @@ export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, on
         ))}
       </div>
 
-      {/* Main Pharmacy Performance Graph */}
+      {/* Redemption Breakdown Table per Pharmacy (REPLACED BAR CHART) */}
       <div className="bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-12">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
           <h3 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-            <MapPin className="text-indigo-600" size={24} />
-            Total Redemptions per Pharmacy
+            <ClipboardList className="text-indigo-600" size={24} />
+            Total Redemptions per Pharmacy (Breakdown)
           </h3>
           <div className="px-5 py-2 bg-indigo-50 rounded-full">
             <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
-              Data from {formatDateDMY(dateRange.start)} to {formatDateDMY(dateRange.end)}
+              Aggregate Data View
             </span>
           </div>
         </div>
         
-        <div className="h-[500px] w-full">
-          {analytics.pharmacyData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart 
-                data={analytics.pharmacyData} 
-                layout="vertical" 
-                margin={{ left: 40, right: 40 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
-                <XAxis type="number" hide />
-                <YAxis 
-                  type="category" 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  width={150}
-                  tick={{fill: '#64748b', fontSize: 11, fontWeight: 700}} 
-                />
-                <Tooltip 
-                  cursor={{fill: '#f8fafc'}}
-                  contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.15)', padding: '16px' }}
-                />
-                <Bar dataKey="count" radius={[0, 12, 12, 0]} barSize={32}>
-                  {analytics.pharmacyData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-slate-300 gap-4">
-              <Calendar size={48} className="opacity-20" />
-              <p className="font-black uppercase tracking-widest text-center">
-                No redemptions found for<br/>selected period
-              </p>
-            </div>
-          )}
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-slate-100">
+                <th className="pb-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-4">Pharmacy</th>
+                <th className="pb-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-4">Date</th>
+                <th className="pb-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-4">Pharmacist ID</th>
+                <th className="pb-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-4">Voucher Name</th>
+                <th className="pb-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-4 text-center">Count</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {analytics.detailedBreakdown.length > 0 ? (
+                analytics.detailedBreakdown.map((row, idx) => (
+                  <tr key={idx} className="group hover:bg-slate-50/50 transition-colors">
+                    <td className="py-5 px-4">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-slate-100 p-2 rounded-lg text-slate-400 group-hover:text-indigo-500 transition-colors">
+                          <Store size={14} />
+                        </div>
+                        <span className="font-bold text-slate-700">{row.pharmacy}</span>
+                      </div>
+                    </td>
+                    <td className="py-5 px-4">
+                      <span className="text-sm font-bold text-slate-500">
+                        {formatDateDMY(row.date)}
+                      </span>
+                    </td>
+                    <td className="py-5 px-4">
+                      <div className="flex items-center gap-2">
+                        <User size={12} className="text-slate-300" />
+                        <span className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                          ID: {row.pharmacistId}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-5 px-4">
+                      <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border ${getVoucherStyle(row.voucherName)}`}>
+                        {row.voucherName}
+                      </span>
+                    </td>
+                    <td className="py-5 px-4 text-center">
+                      <span className="inline-block px-3 py-1 bg-slate-900 text-white rounded-lg text-sm font-black min-w-[32px]">
+                        {row.count}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="py-20 text-center">
+                    <div className="flex flex-col items-center gap-4 text-slate-300">
+                      <Calendar size={48} className="opacity-20" />
+                      <p className="font-black uppercase tracking-widest">
+                        No redemptions found for<br/>selected period
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Leaderboard Table (Filtered) */}
+      {/* Agent Performance Summary */}
       <div className="bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
         <div className="flex items-center justify-between mb-10">
           <h3 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">

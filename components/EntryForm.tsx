@@ -12,12 +12,16 @@ import {
   Ticket,
   ChevronDown,
   Wifi,
+  WifiOff,
   Check,
   Search,
   X,
   Smartphone,
   AlertCircle,
-  Lock
+  Lock,
+  Cloud,
+  // Added RefreshCw to fix line 413 error
+  RefreshCw
 } from 'lucide-react';
 import { SyncService } from '../syncService';
 
@@ -29,15 +33,21 @@ interface EntryFormProps {
 export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
   const [voucherList, setVoucherList] = useState<string[]>([]);
   const [pharmacyList, setPharmacyList] = useState<string[]>([]);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   
   const [isPharmacyOpen, setIsPharmacyOpen] = useState(false);
+  const [isVoucherOpen, setIsVoucherOpen] = useState(false);
+  
   const [pharmacySearch, setPharmacySearch] = useState('');
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [voucherSearch, setVoucherSearch] = useState('');
+  
+  const pharmacyDropdownRef = useRef<HTMLDivElement>(null);
+  const voucherDropdownRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState({
     voucherName: '',
     date: new Date().toISOString().split('T')[0],
-    pharmacyName: user.pharmacyName || '', // Default to user's assigned pharmacy
+    pharmacyName: user.pharmacyName || '', 
     pharmacistId: '',
     customerPhoneNumber: '',
     lakumStatus: '' 
@@ -56,6 +66,10 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
   );
 
   useEffect(() => {
+    const handleStatusChange = () => setIsOnline(navigator.onLine);
+    window.addEventListener('online', handleStatusChange);
+    window.addEventListener('offline', handleStatusChange);
+
     const loadMasterLists = async () => {
       const [vouchers, pharmacies] = await Promise.all([
         SyncService.fetchVoucherList(),
@@ -67,16 +81,27 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
     loadMasterLists();
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (pharmacyDropdownRef.current && !pharmacyDropdownRef.current.contains(event.target as Node)) {
         setIsPharmacyOpen(false);
+      }
+      if (voucherDropdownRef.current && !voucherDropdownRef.current.contains(event.target as Node)) {
+        setIsVoucherOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('online', handleStatusChange);
+      window.removeEventListener('offline', handleStatusChange);
+    };
   }, []);
 
   const filteredPharmacies = pharmacyList.filter(p => 
     p.toLowerCase().includes(pharmacySearch.toLowerCase())
+  );
+
+  const filteredVouchers = voucherList.filter(v => 
+    v.toLowerCase().includes(voucherSearch.toLowerCase())
   );
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -85,10 +110,16 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
   };
 
   const selectPharmacy = (name: string) => {
-    if (user.role !== UserRole.ADMIN) return; // Prevent selection if not admin
+    if (user.role !== UserRole.ADMIN && user.pharmacyName) return;
     setFormData(prev => ({ ...prev, pharmacyName: name }));
     setIsPharmacyOpen(false);
     setPharmacySearch('');
+  };
+
+  const selectVoucher = (name: string) => {
+    setFormData(prev => ({ ...prev, voucherName: name }));
+    setIsVoucherOpen(false);
+    setVoucherSearch('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -130,9 +161,15 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4">
         <div className="flex flex-col gap-2">
           <h2 className="text-4xl font-[800] text-slate-900 tracking-tighter">Voucher Redemption</h2>
-          <p className="text-slate-500 font-bold">
-            Authenticated Location: <span className="text-indigo-600">{user.pharmacyName || user.name}</span>
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="text-slate-500 font-bold">
+              Authenticated Location: <span className="text-indigo-600">{user.pharmacyName || user.name}</span>
+            </p>
+            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${isOnline ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+              {isOnline ? <Wifi size={12} /> : <WifiOff size={12} />}
+              {isOnline ? 'Direct Cloud Sync' : 'Offline Mode (Local)'}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -150,7 +187,8 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
         <form onSubmit={handleSubmit} className="p-10 md:p-14 space-y-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             
-            <div className="space-y-4 md:col-span-2 relative" ref={dropdownRef}>
+            {/* Searchable Pharmacy Dropdown */}
+            <div className="space-y-4 md:col-span-2 relative" ref={pharmacyDropdownRef}>
               <label className="flex items-center gap-3 text-xs font-black text-amber-600 uppercase tracking-[0.15em]">
                 <Store size={20} className="text-amber-500" />
                 Pharmacy Location <span className="text-rose-500 text-lg leading-none">*</span>
@@ -217,28 +255,67 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
               )}
             </div>
 
-            <div className="space-y-4">
+            {/* Searchable Voucher Dropdown */}
+            <div className="space-y-4 relative" ref={voucherDropdownRef}>
               <label className="flex items-center gap-3 text-xs font-black text-indigo-600 uppercase tracking-[0.15em]">
                 <Ticket size={20} className="text-indigo-500" />
                 Voucher Name <span className="text-rose-500 text-lg leading-none">*</span>
               </label>
-              <div className="relative group">
-                <select
-                  name="voucherName"
-                  value={formData.voucherName}
-                  onChange={handleChange}
-                  className="w-full appearance-none bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] px-8 py-5 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-600 transition-all text-slate-900 font-[700] text-lg pr-16"
-                  required
-                >
-                  <option value="" disabled>Select Voucher...</option>
-                  {voucherList.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center px-6 pointer-events-none text-slate-400">
-                  <ChevronDown size={24} />
-                </div>
+              
+              <div 
+                onClick={() => setIsVoucherOpen(!isVoucherOpen)}
+                className={`w-full bg-slate-50 border-2 rounded-[1.5rem] px-8 py-5 transition-all flex items-center justify-between cursor-pointer ${
+                  isVoucherOpen ? 'border-indigo-500 ring-4 ring-indigo-500/10' : !formData.voucherName ? 'border-slate-100' : 'border-slate-200'
+                }`}
+              >
+                <span className={`text-lg font-[700] ${formData.voucherName ? 'text-slate-900' : 'text-slate-400'}`}>
+                  {formData.voucherName || 'Choose voucher...'}
+                </span>
+                <ChevronDown className={`text-slate-400 transition-transform ${isVoucherOpen ? 'rotate-180' : ''}`} size={24} />
               </div>
+
+              {isVoucherOpen && (
+                <div className="absolute z-[60] left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-[2rem] shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
+                    <Search size={18} className="text-slate-400" />
+                    <input 
+                      autoFocus
+                      type="text"
+                      placeholder="Search voucher name..."
+                      value={voucherSearch}
+                      onChange={(e) => setVoucherSearch(e.target.value)}
+                      className="bg-transparent border-none focus:ring-0 w-full font-bold text-slate-700"
+                    />
+                    {voucherSearch && (
+                      <button type="button" onClick={() => setVoucherSearch('')} className="text-slate-300 hover:text-slate-500">
+                        <X size={18} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="max-h-[250px] overflow-y-auto custom-scrollbar p-2">
+                    {filteredVouchers.length > 0 ? (
+                      filteredVouchers.map((name, idx) => (
+                        <div 
+                          key={idx}
+                          onClick={() => selectVoucher(name)}
+                          className={`px-6 py-4 rounded-xl cursor-pointer font-bold transition-all flex items-center justify-between group ${
+                            formData.voucherName === name 
+                              ? 'bg-indigo-50 text-indigo-700' 
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                          }`}
+                        >
+                          {name}
+                          {formData.voucherName === name && <Check size={16} />}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-10 text-center text-slate-400 font-bold italic">
+                        No matches found.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -333,11 +410,23 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
               }`}
             >
               <span className="relative z-10 flex items-center gap-4 text-xl tracking-tight">
-                {isSyncing ? 'SAVING...' : 'LOG REDEMPTION'}
-                {!isSyncing && isFormValid && <Wifi size={24} className="group-hover:animate-bounce" />}
+                {isSyncing ? (
+                  <>
+                    <RefreshCw size={24} className="animate-spin" />
+                    SYNCING TO CLOUD...
+                  </>
+                ) : (
+                  <>
+                    LOG REDEMPTION
+                    {isFormValid && <Cloud size={24} className="group-hover:animate-bounce" />}
+                  </>
+                )}
                 {!isFormValid && <AlertCircle size={20} className="opacity-50" />}
               </span>
             </button>
+            <p className="mt-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              {isOnline ? 'Data will sync immediately' : 'Data will sync once internet returns'}
+            </p>
           </div>
         </form>
       </div>

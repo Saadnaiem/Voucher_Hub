@@ -12,11 +12,11 @@ interface HistoryListProps {
 export const HistoryList: React.FC<HistoryListProps> = ({ entries, onDelete, user }) => {
   const sortedEntries = [...entries].sort((a, b) => b.timestamp - a.timestamp);
 
-  // Date format helper: YYYY-MM-DD -> DD-MM-YY
+  // Date format helper: YYYY-MM-DD -> DD-MM-YYYY
   const formatDateDMY = (dateStr: string) => {
     if (!dateStr) return '';
     const [y, m, d] = dateStr.split('-');
-    return `${d}-${m}-${y.slice(-2)}`;
+    return `${d}-${m}-${y}`;
   };
 
   const formatTime = (timestamp: number) => {
@@ -32,7 +32,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ entries, onDelete, use
     const headers = ["Date", "Time", "Voucher", "Pharmacy", "Pharmacist ID", "Phone Number", "Lakum Status", "Sync Status"];
     
     const rows = sortedEntries.map(entry => [
-      entry.date,
+      formatDateDMY(entry.date),
       formatTime(entry.timestamp),
       `"${entry.voucherName.replace(/"/g, '""')}"`,
       `"${entry.pharmacyName.replace(/"/g, '""')}"`,
