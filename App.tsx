@@ -7,9 +7,7 @@ import { HistoryList } from './components/HistoryList';
 import { Settings } from './components/Settings';
 import { VoucherEntry, UserSession, UserRole } from './types';
 import { SyncService } from './syncService';
-import { Key, ArrowRight, Users } from 'lucide-react';
-
-const ADMIN_PASSWORD = "admin";
+import { Key, ArrowRight, Users, ShieldAlert } from 'lucide-react';
 
 const App: React.FC = () => {
   const [userSession, setUserSession] = useState<UserSession | null>(null);
@@ -17,6 +15,7 @@ const App: React.FC = () => {
   const [entries, setEntries] = useState<VoucherEntry[]>([]);
   const [voucherList, setVoucherList] = useState<string[]>([]);
   const [pharmacyList, setPharmacyList] = useState<string[]>([]);
+  const [adminPassword, setAdminPassword] = useState('admin');
   const [isSyncing, setIsSyncing] = useState(false);
   const [isAdminPasswordPrompt, setIsAdminPasswordPrompt] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
@@ -24,15 +23,17 @@ const App: React.FC = () => {
 
   const pullFromCloud = useCallback(async (isSilent = false) => {
     if (!isSilent) setIsSyncing(true);
-    const [cloudData, cloudVouchers, cloudPharmacies] = await Promise.all([
+    const [cloudData, cloudVouchers, cloudPharmacies, localPassword] = await Promise.all([
       SyncService.fetchMasterData(),
       SyncService.fetchVoucherList(),
-      SyncService.fetchPharmacyList()
+      SyncService.fetchPharmacyList(),
+      SyncService.fetchAdminPassword()
     ]);
     
     setEntries(cloudData);
     setVoucherList(cloudVouchers);
     setPharmacyList(cloudPharmacies);
+    setAdminPassword(localPassword);
     setIsSyncing(false);
   }, []);
 
@@ -61,9 +62,21 @@ const App: React.FC = () => {
     await SyncService.updatePharmacyList(newList);
   };
 
+  const handleUpdateAdminPassword = async (newPass: string) => {
+    setAdminPassword(newPass);
+    await SyncService.updateAdminPassword(newPass);
+  };
+
+  const handleWipeCloud = async () => {
+    await SyncService.wipeCloudDatabase();
+    setEntries([]);
+    await pullFromCloud(true);
+  };
+
   const handleAdminLogin = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (adminPasswordInput === ADMIN_PASSWORD) {
+    
+    if (adminPasswordInput === adminPassword) {
       const session = { id: 'admin-1', name: 'Master Admin', role: UserRole.ADMIN };
       setUserSession(session);
       localStorage.setItem('user_session', JSON.stringify(session));
@@ -95,7 +108,7 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 font-sans">
         <div className="bg-white rounded-[3rem] w-full max-w-md overflow-hidden shadow-2xl border border-white/20">
           <div className="bg-gradient-to-br from-indigo-600 to-indigo-900 p-12 text-white relative">
-            <h1 className="text-4xl font-black tracking-tighter mb-2">Vouchers Redemption Hub</h1>
+            <h1 className="text-4xl font-black tracking-tighter mb-2">Voucher Hub</h1>
             <p className="text-indigo-100/70 font-medium">Immediate Sync Distribution Portal</p>
           </div>
           <div className="p-10 space-y-6">
@@ -113,21 +126,42 @@ const App: React.FC = () => {
                 </div>
               </button>
             ) : (
-              <form onSubmit={handleAdminLogin} className="space-y-4">
-                <div className="relative">
-                  <input 
-                    autoFocus
-                    type="password"
-                    placeholder="Admin PIN"
-                    value={adminPasswordInput}
-                    onChange={(e) => setAdminPasswordInput(e.target.value)}
-                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-3xl px-8 py-5 text-slate-800 font-black text-xl"
-                  />
-                  <button type="submit" className="absolute right-3 top-3 bottom-3 bg-indigo-600 text-white rounded-2xl px-5">
-                    <ArrowRight size={24} />
-                  </button>
+              <form onSubmit={handleAdminLogin} className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Credentials Required</label>
+                  <div className="relative">
+                    <input 
+                      autoFocus
+                      type="password"
+                      placeholder="Enter Admin PIN"
+                      value={adminPasswordInput}
+                      onChange={(e) => setAdminPasswordInput(e.target.value)}
+                      className={`w-full bg-slate-50 border-2 rounded-3xl px-8 py-5 text-slate-800 font-black text-xl outline-none transition-all ${
+                        error ? 'border-rose-400 bg-rose-50/50' : 'border-slate-100 focus:border-indigo-600'
+                      }`}
+                    />
+                    <button type="submit" className="absolute right-3 top-3 bottom-3 bg-indigo-600 text-white rounded-2xl px-5 hover:bg-indigo-700 transition-all">
+                      <ArrowRight size={24} />
+                    </button>
+                  </div>
                 </div>
-                {error && <p className="text-sm font-bold text-rose-500">{error}</p>}
+                {error && (
+                  <div className="flex items-center gap-2 px-4 text-rose-500 animate-in slide-in-from-top-2">
+                    <ShieldAlert size={14} />
+                    <p className="text-xs font-bold">{error}</p>
+                  </div>
+                )}
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setIsAdminPasswordPrompt(false);
+                    setError('');
+                    setAdminPasswordInput('');
+                  }} 
+                  className="text-xs font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest text-center w-full py-2 transition-colors"
+                >
+                  Back to selection
+                </button>
               </form>
             )}
             <button 
@@ -171,7 +205,10 @@ const App: React.FC = () => {
           onUpdateVouchers={handleUpdateVouchers} 
           pharmacyList={pharmacyList}
           onUpdatePharmacies={handleUpdatePharmacies}
+          adminPassword={adminPassword}
+          onUpdateAdminPassword={handleUpdateAdminPassword}
           onRefreshAll={pullFromCloud}
+          onWipeDatabase={handleWipeCloud}
         />
       )}
     </Layout>

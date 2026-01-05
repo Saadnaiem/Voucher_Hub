@@ -12,6 +12,13 @@ interface HistoryListProps {
 export const HistoryList: React.FC<HistoryListProps> = ({ entries, onDelete, user }) => {
   const sortedEntries = [...entries].sort((a, b) => b.timestamp - a.timestamp);
 
+  // Date format helper: YYYY-MM-DD -> DD-MM-YY
+  const formatDateDMY = (dateStr: string) => {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-');
+    return `${d}-${m}-${y.slice(-2)}`;
+  };
+
   const formatTime = (timestamp: number) => {
     return new Date(timestamp).toLocaleTimeString([], { 
       hour: '2-digit', 
@@ -116,7 +123,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ entries, onDelete, use
                    )}
                 </td>
                 <td className="px-8 py-5 whitespace-nowrap text-sm font-bold text-slate-500">
-                  {entry.date}
+                  {formatDateDMY(entry.date)}
                 </td>
                 <td className="px-8 py-5 whitespace-nowrap">
                    <div className="flex items-center gap-2 text-indigo-600 font-bold text-sm">
@@ -126,9 +133,9 @@ export const HistoryList: React.FC<HistoryListProps> = ({ entries, onDelete, use
                 </td>
                 <td className="px-8 py-5 whitespace-nowrap">
                   <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
-                    entry.voucherName.includes('Huggies') ? 'bg-indigo-50 text-indigo-700' :
-                    entry.voucherName.includes('Kotex') ? 'bg-emerald-50 text-emerald-700' :
-                    entry.voucherName.includes('Blevit') ? 'bg-amber-50 text-amber-700' :
+                    entry.voucherName.toLowerCase().includes('huggies') ? 'bg-indigo-50 text-indigo-700' :
+                    entry.voucherName.toLowerCase().includes('kotex') ? 'bg-emerald-50 text-emerald-700' :
+                    entry.voucherName.toLowerCase().includes('blevit') ? 'bg-amber-50 text-amber-700' :
                     'bg-rose-50 text-rose-700'
                   }`}>
                     {entry.voucherName}

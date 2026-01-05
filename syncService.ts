@@ -6,6 +6,7 @@ import { getSupabaseClient } from "./supabaseClient";
 const HUB_STORAGE_KEY = 'voucher_hub_cloud_sync';
 const SETTINGS_VOUCHERS_KEY = 'voucher_hub_settings_vouchers';
 const SETTINGS_PHARMACIES_KEY = 'voucher_hub_settings_pharmacies';
+const ADMIN_PASSWORD_KEY = 'voucher_hub_admin_password';
 const LAST_BACKUP_KEY = 'voucher_hub_last_backup';
 
 export const SyncService = {
@@ -93,7 +94,6 @@ export const SyncService = {
 
     if (supabase) {
       try {
-        // First try to sync any pending local items
         await this.syncPendingEntries();
 
         const { data, error } = await supabase
@@ -115,7 +115,6 @@ export const SyncService = {
             isSynced: true
           }));
 
-          // Merge local unsynced data with cloud data to ensure agent sees their own offline work
           const localUnsynced = localData.filter(le => !le.isSynced && !cloudEntries.find(ce => ce.id === le.id));
           const merged = [...localUnsynced, ...cloudEntries];
           
@@ -178,6 +177,77 @@ export const SyncService = {
         return false;
       }
     }
+    return true;
+  },
+
+  /**
+   * GLOBAL ADMIN PASSWORD LOGIC
+   * Attempts to fetch from Supabase first, falls back to Local Storage.
+   */
+  async fetchAdminPassword(): Promise<string> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('app_config')
+          .select('value')
+          .eq('key', 'admin_password')
+          .single();
+        
+        if (!error && data && data.value) {
+          const cloudPin = String(data.value);
+          localStorage.setItem(ADMIN_PASSWORD_KEY, cloudPin);
+          return cloudPin;
+        }
+      } catch (e) {
+        console.warn("Cloud password fetch failed, using local fallback.");
+      }
+    }
+    return localStorage.getItem(ADMIN_PASSWORD_KEY) || 'admin';
+  },
+
+  /**
+   * GLOBAL ADMIN PASSWORD UPDATE
+   * Saves to Local Storage for instant offline use and pushes to Supabase for global sync.
+   */
+  async updateAdminPassword(newPassword: string): Promise<boolean> {
+    localStorage.setItem(ADMIN_PASSWORD_KEY, newPassword);
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('app_config')
+          .upsert({ 
+            key: 'admin_password', 
+            value: newPassword 
+          }, { 
+            onConflict: 'key' 
+          });
+        return !error;
+      } catch (e) {
+        console.error("Supabase PIN sync failed:", e);
+        return false;
+      }
+    }
+    return true; // Local update successful
+  },
+
+  async wipeCloudDatabase(): Promise<boolean> {
+    const supabase = getSupabaseClient();
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('voucher_entries')
+          .delete()
+          .not('id', 'is', null);
+        
+        if (error) throw error;
+      } catch (e) {
+        console.error("Cloud Wipe Failed:", e);
+        return false;
+      }
+    }
+    localStorage.removeItem(HUB_STORAGE_KEY);
     return true;
   },
 
