@@ -6,7 +6,7 @@
   "description": "Secure Voucher Distribution Tracking System",
   "scripts": {
     "start": "npx serve -s .",
-    "build": "npx esbuild index.tsx --bundle --minify --outfile=index.js --format=esm --target=esnext --external:react --external:react-dom --external:recharts --external:lucide-react --external:@supabase/supabase-js --define:process.env.SUPABASE_URL=\"'$SUPABASE_URL'\" --define:process.env.SUPABASE_ANON_KEY=\"'$SUPABASE_ANON_KEY'\""
+    "build": "npx esbuild index.tsx --bundle --minify --outfile=index.js --format=esm --target=esnext --external:react --external:react-dom --external:recharts --external:lucide-react --external:@supabase/supabase-js --define:process.env.SUPABASE_URL=\"\\\"$SUPABASE_URL\\\"\" --define:process.env.SUPABASE_ANON_KEY=\"\\\"$SUPABASE_ANON_KEY\\\"\""
   },
   "dependencies": {
     "serve": "^14.2.1"
