@@ -180,10 +180,6 @@ export const SyncService = {
     return true;
   },
 
-  /**
-   * GLOBAL ADMIN PASSWORD LOGIC
-   * Attempts to fetch from Supabase first, falls back to Local Storage.
-   */
   async fetchAdminPassword(): Promise<string> {
     const supabase = getSupabaseClient();
     if (supabase) {
@@ -194,10 +190,19 @@ export const SyncService = {
           .eq('key', 'admin_password')
           .single();
         
-        if (!error && data && data.value) {
-          const cloudPin = String(data.value);
-          localStorage.setItem(ADMIN_PASSWORD_KEY, cloudPin);
-          return cloudPin;
+        if (!error && data && data.value !== null) {
+          // Robust string conversion for JSONB
+          let cloudPin = typeof data.value === 'string' ? data.value : JSON.stringify(data.value);
+          
+          // Clean up extra quotes if they exist
+          if (cloudPin.startsWith('"') && cloudPin.endsWith('"')) {
+            cloudPin = cloudPin.substring(1, cloudPin.length - 1);
+          }
+          
+          if (cloudPin && cloudPin !== 'undefined') {
+            localStorage.setItem(ADMIN_PASSWORD_KEY, cloudPin);
+            return cloudPin;
+          }
         }
       } catch (e) {
         console.warn("Cloud password fetch failed, using local fallback.");
@@ -206,10 +211,6 @@ export const SyncService = {
     return localStorage.getItem(ADMIN_PASSWORD_KEY) || 'admin';
   },
 
-  /**
-   * GLOBAL ADMIN PASSWORD UPDATE
-   * Saves to Local Storage for instant offline use and pushes to Supabase for global sync.
-   */
   async updateAdminPassword(newPassword: string): Promise<boolean> {
     localStorage.setItem(ADMIN_PASSWORD_KEY, newPassword);
     const supabase = getSupabaseClient();
@@ -229,7 +230,7 @@ export const SyncService = {
         return false;
       }
     }
-    return true; // Local update successful
+    return true; 
   },
 
   async wipeCloudDatabase(): Promise<boolean> {

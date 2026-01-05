@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { NAV_ITEMS } from '../constants';
 import { UserSession, UserRole } from '../types';
-import { LogOut, User as UserIcon, ShieldCheck, ChevronRight, CloudOff } from 'lucide-react';
+import { LogOut, User as UserIcon, ShieldCheck, ChevronRight, CloudOff, Store } from 'lucide-react';
 import { SyncService } from '../syncService';
 
 interface LayoutProps {
@@ -49,7 +49,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
           className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-lg text-xs font-black uppercase tracking-widest"
         >
           <LogOut size={14} />
-          Switch
+          Log out
         </button>
       </header>
 
@@ -67,11 +67,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
           <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
             <div className="flex items-center gap-3 mb-3">
               <div className={`p-2 rounded-lg ${user.role === UserRole.ADMIN ? 'bg-indigo-100 text-indigo-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                {user.role === UserRole.ADMIN ? <ShieldCheck size={18} /> : <UserIcon size={18} />}
+                {user.role === UserRole.ADMIN ? <ShieldCheck size={18} /> : <Store size={18} />}
               </div>
               <div className="flex flex-col overflow-hidden">
-                <span className="text-sm font-bold text-slate-800 truncate">{user.name}</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{user.role}</span>
+                <span className="text-xs font-bold text-slate-800 truncate leading-tight">
+                  {user.pharmacyName ? user.pharmacyName : user.name}
+                </span>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
+                  {user.role === UserRole.ADMIN ? 'Administrator' : 'Branch Access'}
+                </span>
               </div>
             </div>
             
@@ -79,9 +83,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
               onClick={onLogout}
               className="w-full flex items-center justify-between group px-3 py-2 bg-white border border-slate-100 rounded-xl hover:border-rose-200 hover:bg-rose-50 transition-all"
             >
-              <div className="flex items-center gap-2 text-xs font-black text-slate-400 group-hover:text-rose-600">
-                <LogOut size={14} />
-                SWITCH ACCOUNT
+              <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 group-hover:text-rose-600">
+                <LogOut size={12} />
+                LOG OUT
               </div>
               <ChevronRight size={12} className="text-slate-300 group-hover:text-rose-400" />
             </button>
@@ -118,7 +122,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
 
         <div className="mt-auto pt-6 border-t border-slate-100">
           <div className="bg-slate-50 rounded-2xl p-4 text-center">
-            <span className="text-sm text-slate-400 font-medium">v1.3.0 Optimized</span>
+            <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">v1.4.0 Branch Sync</span>
           </div>
         </div>
       </aside>

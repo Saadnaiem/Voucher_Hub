@@ -13,6 +13,7 @@ export interface UserSession {
   id: string;
   name: string;
   role: UserRole;
+  pharmacyName?: string; // Specific pharmacy assigned to this session
 }
 
 export interface VoucherEntry {
@@ -25,7 +26,7 @@ export interface VoucherEntry {
   lakumStatus: LakumStatus;
   timestamp: number;
   userId: string;
-  isSynced?: boolean; // New property to track sync status
+  isSynced?: boolean; 
 }
 
 export interface AppSettings {

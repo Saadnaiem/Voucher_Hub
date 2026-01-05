@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   LAKUM_STATUS_OPTIONS
 } from '../constants';
-import { LakumStatus, VoucherEntry, UserSession } from '../types';
+import { LakumStatus, VoucherEntry, UserSession, UserRole } from '../types';
 import { 
   Calendar, 
   User, 
@@ -16,7 +16,8 @@ import {
   Search,
   X,
   Smartphone,
-  AlertCircle
+  AlertCircle,
+  Lock
 } from 'lucide-react';
 import { SyncService } from '../syncService';
 
@@ -36,7 +37,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
   const [formData, setFormData] = useState({
     voucherName: '',
     date: new Date().toISOString().split('T')[0],
-    pharmacyName: '',
+    pharmacyName: user.pharmacyName || '', // Default to user's assigned pharmacy
     pharmacistId: '',
     customerPhoneNumber: '',
     lakumStatus: '' 
@@ -84,6 +85,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
   };
 
   const selectPharmacy = (name: string) => {
+    if (user.role !== UserRole.ADMIN) return; // Prevent selection if not admin
     setFormData(prev => ({ ...prev, pharmacyName: name }));
     setIsPharmacyOpen(false);
     setPharmacySearch('');
@@ -121,13 +123,15 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
     }));
   };
 
+  const isPharmacyLocked = user.role !== UserRole.ADMIN && !!user.pharmacyName;
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-4">
         <div className="flex flex-col gap-2">
           <h2 className="text-4xl font-[800] text-slate-900 tracking-tighter">Voucher Redemption</h2>
           <p className="text-slate-500 font-bold">
-            Authenticated Agent: <span className="text-indigo-600">{user.name}</span>
+            Authenticated Location: <span className="text-indigo-600">{user.pharmacyName || user.name}</span>
           </p>
         </div>
       </div>
@@ -153,18 +157,23 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
               </label>
               
               <div 
-                onClick={() => setIsPharmacyOpen(!isPharmacyOpen)}
-                className={`w-full cursor-pointer bg-slate-50 border-2 rounded-[1.5rem] px-8 py-5 transition-all flex items-center justify-between ${
+                onClick={() => !isPharmacyLocked && setIsPharmacyOpen(!isPharmacyOpen)}
+                className={`w-full bg-slate-50 border-2 rounded-[1.5rem] px-8 py-5 transition-all flex items-center justify-between ${
+                  isPharmacyLocked ? 'cursor-not-allowed border-slate-200 bg-slate-100 opacity-80' : 
                   isPharmacyOpen ? 'border-amber-500 ring-4 ring-amber-500/10' : !formData.pharmacyName ? 'border-slate-100' : 'border-slate-200'
                 }`}
               >
                 <span className={`text-lg font-[700] ${formData.pharmacyName ? 'text-slate-900' : 'text-slate-400'}`}>
                   {formData.pharmacyName || 'Choose location...'}
                 </span>
-                <ChevronDown className={`text-slate-400 transition-transform ${isPharmacyOpen ? 'rotate-180' : ''}`} size={24} />
+                {isPharmacyLocked ? (
+                  <Lock size={18} className="text-slate-300" />
+                ) : (
+                  <ChevronDown className={`text-slate-400 transition-transform ${isPharmacyOpen ? 'rotate-180' : ''}`} size={24} />
+                )}
               </div>
 
-              {isPharmacyOpen && (
+              {!isPharmacyLocked && isPharmacyOpen && (
                 <div className="absolute z-[60] left-0 right-0 top-full mt-2 bg-white border border-slate-200 rounded-[2rem] shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                   <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
                     <Search size={18} className="text-slate-400" />
@@ -329,12 +338,6 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
                 {!isFormValid && <AlertCircle size={20} className="opacity-50" />}
               </span>
             </button>
-            <div className="mt-8 flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${isFormValid ? 'bg-emerald-500 animate-ping' : 'bg-slate-300'}`}></div>
-              <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.5em]">
-                {isFormValid ? 'Ready for cloud sync' : 'Complete required fields'}
-              </p>
-            </div>
           </div>
         </form>
       </div>
