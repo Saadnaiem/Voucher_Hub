@@ -14,17 +14,21 @@ import {
   ArrowRight,
   ClipboardList,
   Store,
-  User
+  User,
+  PieChart,
+  Target,
+  BarChart3
 } from 'lucide-react';
 
 interface DashboardProps {
   entries: VoucherEntry[];
   pharmacyCount: number;
+  voucherList: string[]; // Received from App.tsx
   onClearData?: () => void;
   onImportData?: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, onClearData, onImportData }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, voucherList, onClearData, onImportData }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Date format helper: YYYY-MM-DD -> DD-MM-YYYY
@@ -54,6 +58,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, on
   const analytics = useMemo(() => {
     const pharmacyMap: Record<string, number> = {};
     const pharmacistMap: Record<string, number> = {};
+    
+    // CRITICAL: Initialize every voucher brand from the master list with 0
+    const voucherMap: Record<string, number> = {};
+    voucherList.forEach(v => {
+      voucherMap[v] = 0;
+    });
+
     const breakdownMap: Record<string, {
       pharmacy: string;
       date: string;
@@ -68,6 +79,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, on
       // General KPIs
       pharmacyMap[e.pharmacyName] = (pharmacyMap[e.pharmacyName] || 0) + 1;
       pharmacistMap[e.pharmacistId] = (pharmacistMap[e.pharmacistId] || 0) + 1;
+      
+      // Update count (it's already initialized to 0 above)
+      voucherMap[e.voucherName] = (voucherMap[e.voucherName] || 0) + 1;
+      
       if (e.lakumStatus === 'New Enrollment') newEnrollments++;
 
       // Granular Breakdown Key: Pharmacy|Date|Pharmacist|Voucher
@@ -92,6 +107,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, on
       .map(([id, count]) => ({ id, count }))
       .sort((a, b) => b.count - a.count);
 
+    const voucherPerformance = Object.entries(voucherMap)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+
     const detailedBreakdown = Object.values(breakdownMap).sort((a, b) => {
       // Sort by date (desc) then pharmacy (asc)
       if (b.date !== a.date) return b.date.localeCompare(a.date);
@@ -104,9 +123,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, on
       reportingCount: Object.keys(pharmacyMap).length,
       pharmacyData,
       pharmacistData,
+      voucherPerformance,
       detailedBreakdown
     };
-  }, [filteredEntries]);
+  }, [filteredEntries, voucherList]);
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
@@ -119,12 +139,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, on
     setDateRange(prev => ({ ...prev, [name]: value }));
   };
 
-  const getVoucherStyle = (name: string) => {
+  const getVoucherColors = (name: string) => {
     const n = name.toLowerCase();
-    if (n.includes('huggies')) return 'bg-indigo-50 text-indigo-700 border-indigo-100';
-    if (n.includes('kotex')) return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-    if (n.includes('blevit')) return 'bg-amber-50 text-amber-700 border-amber-100';
-    return 'bg-rose-50 text-rose-700 border-rose-100';
+    if (n.includes('huggies')) return { text: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100', icon: 'text-indigo-400' };
+    if (n.includes('kotex')) return { text: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', icon: 'text-emerald-400' };
+    if (n.includes('blevit')) return { text: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', icon: 'text-amber-400' };
+    if (n.includes('vitafos')) return { text: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', icon: 'text-blue-400' };
+    return { text: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100', icon: 'text-rose-400' };
   };
 
   return (
@@ -175,7 +196,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, on
         {[
           { label: 'Redeemed in Period', value: analytics.total, icon: <Ticket />, color: 'text-indigo-600', bg: 'bg-indigo-50', sub: 'Successful Logs' },
           { label: 'Active in Period', value: analytics.reportingCount, icon: <Building2 />, color: 'text-amber-600', bg: 'bg-amber-50', sub: 'Locations Reporting' },
-          { label: 'Top Pharmacist', value: analytics.pharmacistData[0]?.count || 0, icon: <UserCheck />, color: 'text-emerald-600', bg: 'bg-emerald-50', sub: `ID: ${analytics.pharmacistData[0]?.id || 'N/A'}` },
+          { label: 'Top Performing Brand', value: analytics.voucherPerformance[0]?.count || 0, icon: <BarChart3 />, color: 'text-emerald-600', bg: 'bg-emerald-50', sub: `${analytics.voucherPerformance[0]?.name || 'No Data'}` },
           { label: 'New Lakum Users', value: analytics.newEnrollments, icon: <Users />, color: 'text-blue-600', bg: 'bg-blue-50', sub: 'Period Enrollments' }
         ].map((stat, idx) => (
           <div key={idx} className="bg-white p-8 rounded-[3.5rem] border border-slate-100 shadow-xl shadow-slate-200/40 group hover:scale-[1.02] transition-transform">
@@ -184,21 +205,65 @@ export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, on
              </div>
              <p className={`text-[10px] font-black uppercase tracking-[0.25em] mb-1 ${stat.color}`}>{stat.label}</p>
              <p className="text-4xl font-black text-slate-900 tracking-tight mb-2">{stat.value}</p>
-             <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">{stat.sub}</p>
+             <p className="text-xs font-bold text-slate-300 uppercase tracking-widest truncate">{stat.sub}</p>
           </div>
         ))}
       </div>
 
-      {/* Redemption Breakdown Table per Pharmacy (REPLACED BAR CHART) */}
+      {/* BRAND PERFORMANCE GRID - SHOWING ALL VOUCHERS */}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between px-4">
+          <div className="flex items-center gap-3">
+             <PieChart size={20} className="text-slate-400" />
+             <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest">Brand Metrics (Full List)</h3>
+          </div>
+          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+            {voucherList.length} Total Brands Tracked
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {analytics.voucherPerformance.map((v) => {
+            const styles = getVoucherColors(v.name);
+            return (
+              <div key={v.name} className={`${styles.bg} ${styles.border} border p-8 rounded-[2.5rem] shadow-sm transition-all hover:shadow-md group relative overflow-hidden`}>
+                 <div className="flex justify-between items-start mb-6">
+                    <div className={`${styles.icon} opacity-50`}>
+                      <Target size={24} />
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className={`text-4xl font-black ${styles.text}`}>{v.count}</span>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Redemptions</span>
+                    </div>
+                 </div>
+                 <h4 className="text-sm font-black text-slate-700 uppercase tracking-wider mb-2 truncate">{v.name}</h4>
+                 <div className="w-full bg-white/50 h-1.5 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full ${styles.text.replace('text', 'bg')} opacity-60 transition-all duration-1000`} 
+                      style={{ width: `${analytics.total === 0 ? 0 : (v.count / analytics.total) * 100}%` }}
+                    />
+                 </div>
+                 <div className="flex justify-between mt-2">
+                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Campaign Share</span>
+                    <span className={`text-[9px] font-black ${styles.text}`}>
+                      {analytics.total === 0 ? '0.0%' : ((v.count / analytics.total) * 100).toFixed(1)}%
+                    </span>
+                 </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Redemption Breakdown Table per Pharmacy */}
       <div className="bg-white p-10 rounded-[3.5rem] border border-slate-100 shadow-xl shadow-slate-200/40">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10">
           <h3 className="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-3">
             <ClipboardList className="text-indigo-600" size={24} />
-            Total Redemptions per Pharmacy (Breakdown)
+            Network Redemption Log
           </h3>
           <div className="px-5 py-2 bg-indigo-50 rounded-full">
             <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">
-              Aggregate Data View
+              Detailed Aggregated Data
             </span>
           </div>
         </div>
@@ -240,7 +305,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ entries, pharmacyCount, on
                       </div>
                     </td>
                     <td className="py-5 px-4">
-                      <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border ${getVoucherStyle(row.voucherName)}`}>
+                      <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border ${getVoucherColors(row.voucherName).bg} ${getVoucherColors(row.voucherName).text} ${getVoucherColors(row.voucherName).border}`}>
                         {row.voucherName}
                       </span>
                     </td>

@@ -253,6 +253,7 @@ const App: React.FC = () => {
           onClearData={() => {SyncService.clearCloudHub(); setEntries([]);}} 
           onImportData={pullFromCloud}
           pharmacyCount={pharmacyList.length}
+          voucherList={voucherList}
         />
       )}
       {activeTab === 'entry' && <EntryForm onSubmit={handleAddEntry} user={userSession} />}
