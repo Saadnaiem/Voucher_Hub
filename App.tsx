@@ -15,7 +15,7 @@ const App: React.FC = () => {
   const [entries, setEntries] = useState<VoucherEntry[]>([]);
   const [voucherList, setVoucherList] = useState<string[]>([]);
   const [pharmacyList, setPharmacyList] = useState<string[]>([]);
-  const [adminPassword, setAdminPassword] = useState('admin');
+  const [adminPassword, setAdminPassword] = useState('saad183664#');
   const [isSyncing, setIsSyncing] = useState(false);
   
   // Login States

@@ -20,8 +20,11 @@ import {
   AlertCircle,
   Lock,
   Cloud,
-  // Added RefreshCw to fix line 413 error
-  RefreshCw
+  RefreshCw,
+  PlusCircle,
+  UserCheck,
+  Zap,
+  PhoneCall
 } from 'lucide-react';
 import { SyncService } from '../syncService';
 
@@ -187,7 +190,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
         <form onSubmit={handleSubmit} className="p-10 md:p-14 space-y-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             
-            {/* Searchable Pharmacy Dropdown */}
+            {/* Pharmacy Selection */}
             <div className="space-y-4 md:col-span-2 relative" ref={pharmacyDropdownRef}>
               <label className="flex items-center gap-3 text-xs font-black text-amber-600 uppercase tracking-[0.15em]">
                 <Store size={20} className="text-amber-500" />
@@ -255,7 +258,7 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
               )}
             </div>
 
-            {/* Searchable Voucher Dropdown */}
+            {/* Voucher Selection - LIST CHOOSE FROM */}
             <div className="space-y-4 relative" ref={voucherDropdownRef}>
               <label className="flex items-center gap-3 text-xs font-black text-indigo-600 uppercase tracking-[0.15em]">
                 <Ticket size={20} className="text-indigo-500" />
@@ -354,47 +357,90 @@ export const EntryForm: React.FC<EntryFormProps> = ({ onSubmit, user }) => {
               </div>
             </div>
 
+            {/* MOM'S PHONE - BOLD AND COLOURED LABEL, ATTENTION SEEKING INPUT */}
             <div className="space-y-4">
-              <label className="flex items-center gap-3 text-xs font-black text-blue-600 uppercase tracking-[0.15em]">
-                <Smartphone size={20} className="text-blue-500" />
-                Customer Phone <span className="text-rose-500 text-lg leading-none">*</span>
+              <label className="flex items-center gap-3 text-lg font-black text-blue-700 uppercase tracking-[0.15em] animate-pulse">
+                <Smartphone size={24} className="text-blue-600" />
+                MOM'S PHONE <span className="text-rose-600 text-2xl leading-none">*</span>
               </label>
-              <div className="relative">
+              <div className="relative group/phone">
                 <input
                   type="tel"
                   name="customerPhoneNumber"
                   placeholder="+966 5X XXX XXXX"
                   value={formData.customerPhoneNumber}
                   onChange={handleChange}
-                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-[1.5rem] px-8 py-5 pl-14 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all text-slate-900 font-[700] text-lg"
+                  className="w-full bg-slate-50 border-[3px] border-slate-100 rounded-[1.5rem] px-8 py-6 pl-16 focus:ring-[10px] focus:ring-blue-500/10 focus:border-blue-600 focus:bg-white hover:border-blue-400 hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-500 text-slate-900 font-[900] text-2xl placeholder:text-slate-300 placeholder:font-bold"
                   required
                 />
-                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300">
-                  <Smartphone size={20} />
+                <div className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within/phone:text-blue-500 transition-colors group-hover/phone:scale-125 duration-500">
+                  <PhoneCall size={28} />
                 </div>
+                {/* Visual highlight bar */}
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-1 bg-blue-600 group-hover/phone:w-3/4 group-focus-within/phone:w-full transition-all duration-700 rounded-full" />
               </div>
             </div>
 
+            {/* Lakum Status - BOLD AND RED LABEL */}
             <div className="space-y-4 md:col-span-2">
-              <label className="flex items-center gap-3 text-xs font-black text-emerald-600 uppercase tracking-[0.15em]">
-                <User size={20} className="text-emerald-500" />
-                Lakum Enrollment <span className="text-rose-500 text-lg leading-none">*</span>
+              <label className="flex items-center gap-3 text-2xl font-black text-red-600 uppercase tracking-[0.2em]">
+                <Zap size={28} className="text-red-600 fill-red-600" />
+                LAKUM STATUS <span className="text-red-700 text-3xl leading-none">*</span>
               </label>
-              <div className="flex gap-4">
-                {LAKUM_STATUS_OPTIONS.map(opt => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => setFormData(prev => ({ ...prev, lakumStatus: opt }))}
-                    className={`flex-1 p-5 rounded-[1.5rem] border-2 transition-all font-black flex items-center justify-center gap-3 text-[10px] uppercase tracking-[0.2em] ${
-                      formData.lakumStatus === opt 
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-xl shadow-indigo-100' 
-                        : 'border-slate-50 bg-slate-50 text-slate-400 hover:border-slate-200'
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
+              <div className="flex flex-col sm:flex-row gap-6">
+                {/* NEW ENROLLMENT BUTTON - COMPACT HALF-HEIGHT */}
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, lakumStatus: 'New Enrollment' }))}
+                  className={`flex-1 group relative py-5 px-8 rounded-[2rem] border-4 transition-all duration-300 transform active:scale-95 overflow-hidden ${
+                    formData.lakumStatus === 'New Enrollment'
+                    ? 'border-emerald-600 bg-gradient-to-br from-emerald-500 via-emerald-600 to-teal-700 text-white shadow-[0_20px_40px_-10px_rgba(16,185,129,0.5)] scale-[1.02]'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-800 hover:border-emerald-400 hover:bg-emerald-100'
+                  }`}
+                >
+                  <div className="flex flex-row items-center justify-center gap-4 relative z-10">
+                    <div className={`p-3 rounded-2xl shadow-md transition-all duration-500 ${formData.lakumStatus === 'New Enrollment' ? 'bg-white text-emerald-600 rotate-3' : 'bg-white/80 text-emerald-500'}`}>
+                      <PlusCircle size={32} strokeWidth={2.5} />
+                    </div>
+                    <div className="text-left">
+                      <span className={`block font-black text-base uppercase tracking-[0.1em] ${formData.lakumStatus === 'New Enrollment' ? 'text-white' : 'text-emerald-900'}`}>New Enrollment</span>
+                      <span className={`text-[8px] font-bold uppercase opacity-60 tracking-widest ${formData.lakumStatus === 'New Enrollment' ? 'text-emerald-50' : 'text-emerald-600'}`}>Register Mom Now</span>
+                    </div>
+                  </div>
+                  
+                  {formData.lakumStatus === 'New Enrollment' && (
+                    <div className="absolute top-2 right-4 bg-white text-emerald-600 p-1 rounded-full shadow-sm animate-bounce">
+                      <Check size={14} strokeWidth={4} />
+                    </div>
+                  )}
+                </button>
+
+                {/* HAS ACCOUNT BUTTON - COMPACT HALF-HEIGHT */}
+                <button
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, lakumStatus: 'Has account' }))}
+                  className={`flex-1 group relative py-5 px-8 rounded-[2rem] border-4 transition-all duration-300 transform active:scale-95 overflow-hidden ${
+                    formData.lakumStatus === 'Has account'
+                    ? 'border-indigo-600 bg-gradient-to-br from-indigo-500 via-indigo-600 to-blue-700 text-white shadow-[0_20px_40px_-10px_rgba(79,70,229,0.5)] scale-[1.02]'
+                    : 'border-indigo-200 bg-indigo-50 text-indigo-800 hover:border-indigo-400 hover:bg-indigo-100'
+                  }`}
+                >
+                  <div className="flex flex-row items-center justify-center gap-4 relative z-10">
+                    <div className={`p-3 rounded-2xl shadow-md transition-all duration-500 ${formData.lakumStatus === 'Has account' ? 'bg-white text-indigo-600 -rotate-3' : 'bg-white/80 text-indigo-500'}`}>
+                      <UserCheck size={32} strokeWidth={2.5} />
+                    </div>
+                    <div className="text-left">
+                      <span className={`block font-black text-base uppercase tracking-[0.1em] ${formData.lakumStatus === 'Has account' ? 'text-white' : 'text-indigo-900'}`}>Has Account</span>
+                      <span className={`text-[8px] font-bold uppercase opacity-60 tracking-widest ${formData.lakumStatus === 'Has account' ? 'text-indigo-50' : 'text-indigo-600'}`}>Existing Member</span>
+                    </div>
+                  </div>
+                  
+                  {formData.lakumStatus === 'Has account' && (
+                    <div className="absolute top-2 right-4 bg-white text-indigo-600 p-1 rounded-full shadow-sm animate-bounce">
+                      <Check size={14} strokeWidth={4} />
+                    </div>
+                  )}
+                </button>
               </div>
             </div>
           </div>

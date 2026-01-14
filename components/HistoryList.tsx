@@ -29,7 +29,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ entries, onDelete, use
   };
 
   const downloadCSV = () => {
-    const headers = ["Date", "Time", "Voucher", "Pharmacy", "Pharmacist ID", "Phone Number", "Lakum Status", "Sync Status"];
+    const headers = ["Date", "Time", "Voucher", "Pharmacy", "Pharmacist ID", "Mom's Phone", "Lakum Status", "Sync Status"];
     
     const rows = sortedEntries.map(entry => [
       formatDateDMY(entry.date),
@@ -102,7 +102,7 @@ export const HistoryList: React.FC<HistoryListProps> = ({ entries, onDelete, use
               <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Voucher</th>
               <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Pharmacy</th>
               <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Pharmacist</th>
-              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Customer</th>
+              <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">MOM'S PHONE</th>
               <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Actions</th>
             </tr>
           </thead>

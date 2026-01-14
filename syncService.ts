@@ -208,7 +208,7 @@ export const SyncService = {
         console.warn("Cloud password fetch failed, using local fallback.");
       }
     }
-    return localStorage.getItem(ADMIN_PASSWORD_KEY) || 'admin';
+    return localStorage.getItem(ADMIN_PASSWORD_KEY) || 'saad183664#';
   },
 
   async updateAdminPassword(newPassword: string): Promise<boolean> {
